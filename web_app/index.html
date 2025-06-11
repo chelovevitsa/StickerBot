@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Вплати звёзды</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding-top: 40px;
+    }
+    button {
+      font-size: 20px;
+      padding: 10px 20px;
+      background: #0088cc;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Вплати звёзды</h1>
+  <button onclick="payStars()">Оплатить</button>
+
+  <script>
+    Telegram.WebApp.ready();
+
+    function payStars() {
+      Telegram.WebApp.pay({
+        payment_provider_user_id: "", // можно оставить пустым
+        payload: "donate_payload_001"
+      });
+    }
+  </script>
+</body>
+</html>
