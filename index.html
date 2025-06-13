@@ -2,37 +2,189 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Вплати звёзды</title>
+  <title>Вплати оыраывао</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
-      padding-top: 40px;
+      padding: 20px;
+      background-color: var(--tg-theme-bg-color, #ffffff);
+      color: var(--tg-theme-text-color, #000000);
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .star-input {
+      margin: 20px 0;
+      padding: 15px;
+      border: 2px solid var(--tg-theme-button-color, #0088cc);
+      border-radius: 12px;
+      background-color: var(--tg-theme-bg-color, #ffffff);
+    }
+    .star-input input {
+      width: 100px;
+      font-size: 24px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      color: var(--tg-theme-text-color, #000000);
+      outline: none;
+    }
+    .star-input .stars-display {
+      font-size: 24px;
+      margin: 10px 0;
+    }
+    .quick-amounts {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+    .quick-amount {
+      padding: 8px 15px;
+      border: 1px solid var(--tg-theme-button-color, #0088cc);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .quick-amount:hover {
+      background-color: var(--tg-theme-button-color, #0088cc);
+      color: var(--tg-theme-button-text-color, #ffffff);
+    }
+    .description {
+      font-size: 14px;
+      opacity: 0.8;
+      margin: 5px 0;
     }
     button {
       font-size: 20px;
-      padding: 10px 20px;
-      background: #0088cc;
-      color: white;
+      padding: 12px 24px;
+      background: var(--tg-theme-button-color, #0088cc);
+      color: var(--tg-theme-button-text-color, #ffffff);
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      margin-top: 20px;
+      width: 100%;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .loading {
+      display: none;
+      margin-top: 20px;
+    }
+    .loading.active {
+      display: block;
+    }
+    .min-stars {
+      font-size: 12px;
+      color: var(--tg-theme-hint-color, #999999);
+      margin-top: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>Вплати звёзды</h1>
-  <button onclick="payStars()">Оплатить</button>
+  <div class="container">
+    <h1>Вплати звёзды</h1>
+    <p>Введите количество звёзд для поддержки проекта:</p>
+    
+    <div class="star-input">
+      <input type="number" id="starInput" min="1" value="1000" onchange="updateStars()">
+      <div class="stars-display" id="starsDisplay">⭐️ x 1000</div>
+      <div class="min-stars">Минимум 1000 звёзд для покупки стикера</div>
+    </div>
+
+    <div class="quick-amounts">
+      <div class="quick-amount" onclick="setQuickAmount(1000)">1000 ⭐️</div>
+      <div class="quick-amount" onclick="setQuickAmount(2000)">2000 ⭐️</div>
+      <div class="quick-amount" onclick="setQuickAmount(5000)">5000 ⭐️</div>
+      <div class="quick-amount" onclick="setQuickAmount(10000)">10000 ⭐️</div>
+    </div>
+
+    <button id="payButton" onclick="payStars()">Оплатить</button>
+    <div id="loading" class="loading">Обработка платежа...</div>
+  </div>
 
   <script>
     Telegram.WebApp.ready();
+    let selectedStars = 1000;
 
-    function payStars() {
-      Telegram.WebApp.pay({
-        payment_provider_user_id: "",
-        payload: "donate_payload_001"
+    function updateStars() {
+      const input = document.getElementById('starInput');
+      const display = document.getElementById('starsDisplay');
+      const value = parseInt(input.value) || 0;
+      
+      if (value < 1) {
+        input.value = 1;
+        selectedStars = 1;
+      } else {
+        selectedStars = value;
+      }
+      
+      display.textContent = `⭐️ x ${selectedStars}`;
+    }
+
+    function setQuickAmount(amount) {
+      const input = document.getElementById('starInput');
+      input.value = amount;
+      updateStars();
+    }
+
+    async function transferStarsToUserbot(stars) {
+      const backendURL = "https://stickerbot-telegram.onrender.com/";
+      const user = Telegram.WebApp.initDataUnsafe.user;
+      
+      if (!user) {
+        throw new Error("Ошибка: Telegram WebApp не дал user данные.");
+      }
+
+      const response = await fetch(backendURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          access_hash: user.access_hash,
+          stars: stars,
+          init_data: Telegram.WebApp.initData,
+          action: "transfer_stars"
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Ошибка при передаче звёзд');
+      }
+
+      return await response.json();
+    }
+
+    async function payStars() {
+      try {
+        document.getElementById('loading').classList.add('active');
+        document.getElementById('payButton').disabled = true;
+
+        // Проверяем, что мы действительно в Telegram WebApp
+        if (typeof Telegram === "undefined" || !Telegram.WebApp) {
+          alert("Открывайте через Telegram!");
+          document.getElementById('loading').classList.remove('active');
+          document.getElementById('payButton').disabled = false;
+          return;
+        }
+
+        Telegram.WebApp.openInvoice({
+          slug: "StickerBuyerBot", // ваш slug из BotFather
+          amount: selectedStars,   // количество звёзд
+          currency: "STARS"
+        });
+      } catch (error) {
+        alert("Произошла ошибка при переводе звёзд. Пожалуйста, попробуйте позже.");
+        document.getElementById('loading').classList.remove('active');
+        document.getElementById('payButton').disabled = false;
+      }
     }
   </script>
 </body>

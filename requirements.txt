@@ -1,0 +1,6 @@
+aiogram>=3.0.0
+python-dotenv>=0.19.0
+telethon
+fastapi>=0.68.0
+uvicorn>=0.15.0
+python-multipart
